@@ -1,5 +1,3 @@
-# src/core/application.py
-
 """
 Модуль: application.py
 
@@ -198,7 +196,12 @@ class Application:
         return layout
 
     def _on_create_single(self):
-        """Обработчик создания одной торговой точки."""
+        """
+        
+        Обработчик создания одной торговой точки.
+        
+        Тут будет расположена логика создания точки.
+        """
         data = {}
         for key, field in self._input_fields.items():
             if key.startswith("create_"):
@@ -215,7 +218,11 @@ class Application:
             self._log(f"❌ Ошибка при создании: {e}")
 
     def _on_bulk_create(self):
-        """Обработчик массового создания из JSON."""
+        """
+        Обработчик массового создания из JSON.
+        
+        Используем эту функцию для обращения к классам программы, реализующим бизнес логику создания ТТ
+        """
         json_text = self.bulk_input.toPlainText().strip()
         if not json_text:
             self._log("⚠️ JSON пуст")
@@ -232,7 +239,12 @@ class Application:
             self._log(f"❌ Ошибка в JSON или данных: {e}")
 
     def _on_reassign_bulk(self):
-        """Обработчик массовой перепривязки."""
+        """
+        Обработчик массовой перепривязки.
+        
+        
+        Обращаемся к данному методу для массовой перепривязки территории ESR для списка торговых точек у которых указан GUID
+        """
         new_esr = self.le_reassign_esr.text().strip()
         if not new_esr:
             self._log("⚠️ Укажите новый код территории привязки (ESR)")
@@ -247,7 +259,11 @@ class Application:
             self._log(f"❌ Ошибка при перепривязке: {e}")
 
     def _on_load_json(self):
-        """Загрузка JSON-файла из 1С."""
+        """
+        Загрузка JSON-файла из 1С.
+        
+        
+        """
         file_path, _ = QFileDialog.getOpenFileName(
             self.main_window,
             "Загрузить JSON из 1С",
@@ -261,7 +277,11 @@ class Application:
             self.label_file_status.setText("❌ Загрузка отменена")
 
     def _log(self, message: str):
-        """Добавляет сообщение в лог с временной меткой."""
+        """
+        Добавляет сообщение в лог с временной меткой.
+        
+        Функция которую нужно перенести в отдельный класс Logger
+        """
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.log_area.append(f"[{timestamp}] {message}")
