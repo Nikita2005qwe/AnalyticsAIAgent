@@ -1,5 +1,3 @@
-# src/buisness_processes/data/settings_for_invoices_check.py
-
 from openpyxl.styles import PatternFill
 
 # Соответствие префикса → город → регион
@@ -7,14 +5,16 @@ INVOICE_PREFIX_REGIONS: dict[str, dict] = {
     # Сибирь
     "01/": {"city": "Красноярск", "region": "siberia"},
     "02/": {"city": "Абакан", "region": "siberia"},
-    "04/": {"city": "Новокузнецк", "region": "siberia"},
+    "04/": {"city": "Новокузнецк", "region": "siberia", "alternative_city": "Новосибирск"},
     "05/": {"city": "Новосибирск", "region": "siberia"},
+    "06/": {"city": "Омск", "region": "siberia"},
+    "Е-": {"city": "Омск", "region": "siberia"},
     "Б-": {"city": "Абакан", "region": "siberia"},
-    "К-": {"city": "Красноярск", "region": "siberia"},
+    "К-": {"city": "Новосибирск", "region": "siberia"},
     "И-": {"city": "Новокузнецк", "region": "siberia"},
-
+    "У-": {"city": "Красноярск", "region": "siberia"},
     # Урал
-    "07/": {"city": "Челябинск", "region": "ural"},
+    "07/": {"city": "Челябинск", "region": "ural", "alternative_city": "Курган"},
     "Ч-": {"city": "Челябинск", "region": "ural"},
 }
 

@@ -16,7 +16,7 @@ from PyQt5.QtCore import Qt
 
 # Импорт процесса
 from src.buisness_processes.check_invoices.process import InvoiceCheckerProcess
-
+from src.core.logger import Logger
 
 class CheckInvoicesWidget(QWidget):
     """
@@ -26,14 +26,14 @@ class CheckInvoicesWidget(QWidget):
     # Допустимые листы
     AVAILABLE_SHEETS = ["выгрузка_GC", "выгрузка_BF", "выгрузка_PU"]
 
-    def __init__(self, log_callback):
+    def __init__(self, logger: Logger):
         """
-        :param log_callback: Функция для вывода сообщений в лог (например, Application._log).
+        :param logger: Экземпляр класса Logger - логирует результаты исполнения операций и процессов
         """
         super().__init__()
-        self.log = log_callback
+        self.logger = logger
         self.file_path = None
-        self.process = InvoiceCheckerProcess(log_callback=self.log)
+        self.process = InvoiceCheckerProcess(logger=self.logger)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -86,7 +86,7 @@ class CheckInvoicesWidget(QWidget):
             short_name = path.split("/")[-1]
             self.file_label.setText(f"✅ {short_name}")
             self.btn_run.setEnabled(True)
-            self.log(f"📎 Выбран файл: {short_name}")
+            self.logger.log(f"📎 Выбран файл: {short_name}")
         else:
             self.file_label.setText("Файл не выбран")
             self.btn_run.setEnabled(False)
@@ -94,11 +94,11 @@ class CheckInvoicesWidget(QWidget):
     def _on_run_process(self):
         """Запуск процесса проверки."""
         if not self.file_path:
-            self.log("⚠️ Файл не выбран.")
+            self.logger.log("⚠️ Файл не выбран.")
             return
 
         sheet_name = self.sheet_combo.currentText()
-        self.log(f"🚀 Запуск проверки: лист='{sheet_name}'")
+        self.logger.log(f"🚀 Запуск проверки: лист='{sheet_name}'")
 
         try:
             results = self.process.run(self.file_path, sheet_name)
@@ -107,8 +107,8 @@ class CheckInvoicesWidget(QWidget):
             not_found = sum(1 for _, f, s in results if s == "not_found")
             errors = sum(1 for _, f, s in results if s in ("unknown", "error"))
 
-            self.log(f"✅ Готово: найдено={found}, не найдено={not_found}, ошибки={errors}")
-            self.log(f"🎨 Результаты сохранены в файл: {self.file_path}")
+            self.logger.log(f"✅ Готово: найдено={found}, не найдено={not_found}, ошибки={errors}")
+            self.logger.log(f"🎨 Результаты сохранены в файл: {self.file_path}")
 
         except Exception as e:
-            self.log(f"❌ Ошибка при выполнении: {e}")
+            self.logger.log(f"❌ Ошибка при выполнении: {e}")

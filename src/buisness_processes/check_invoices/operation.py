@@ -1,18 +1,14 @@
-# src/buisness_processes/check_invoices/operation.py
-
 from dotenv import load_dotenv
 import os
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-
 from src.pages.dms.main_page import MainPage
 from src.pages.dms.login_page import LoginPage
 from src.pages.dms.subsystems_page import SubsystemsPage
 from src.pages.dms.distributor_panel_page import DistributorPanelPage
 from src.pages.dms.invoices_page import InvoicesPage
-
 from src.buisness_processes.data.settings_for_invoices_check import INVOICE_PREFIX_REGIONS
 
 load_dotenv()
@@ -111,23 +107,43 @@ class DMSOperation:
         """
         Проверяет накладную.
         Предусловие: операция создана под нужный регион.
+         1. Сначала — на основной площадке.
+        2. Если не найдена и есть alternative_city — пробует на альтернативной.
         """
         if not self._initialized:
             self._start_dms()
 
-        try:
-            city, region = self._get_city_and_region(invoice_number)
-        except ValueError as e:
-            raise e
+        # Определяем префикс и данные
+        prefix_data = None
+        for prefix, data in INVOICE_PREFIX_REGIONS.items():
+            if invoice_number.startswith(prefix):
+                prefix_data = data
+                break
 
-        if region != self.region:
-            raise ValueError(f"Накладная относится к региону '{region}', а сессия — '{self.region}'")
+        if not prefix_data:
+            raise ValueError(f"Неизвестный префикс: {invoice_number}")
 
-        self._switch_to_city(city)
+        if prefix_data["region"] != self.region:
+            raise ValueError(f"Накладная относится к региону '{prefix_data['region']}', а сессия — '{self.region}'")
+
+        # Основной город
+        main_city = prefix_data["city"]
+        self._switch_to_city(main_city)
         self.invoices_page.perform_search(invoice_number)
         self.invoices_page.wait_for_search_result()
 
-        return not self.invoices_page.is_empty()
+        if not self.invoices_page.is_empty():
+            return True
+
+        # Если не найдена, и есть альтернативная площадка — пробуем
+        alt_city = prefix_data.get("alternative_city")
+        if alt_city:
+            self._switch_to_city(alt_city)
+            self.invoices_page.perform_search(invoice_number)
+            self.invoices_page.wait_for_search_result()
+            return not self.invoices_page.is_empty()  # True, если найдена на альтернативной
+
+        return False
 
     def close(self):
         self._safe_quit()

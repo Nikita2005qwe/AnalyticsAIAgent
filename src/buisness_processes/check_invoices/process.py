@@ -1,8 +1,7 @@
-# src/buisness_processes/check_invoices/process.py
-
 from typing import List, Tuple, Dict
 import pandas as pd
 from openpyxl import load_workbook
+from src.core.logger import Logger
 
 from src.buisness_processes.data.settings_for_invoices_check import (
     INVOICE_PREFIX_REGIONS,
@@ -15,8 +14,8 @@ from src.buisness_processes.check_invoices.operation import DMSOperation
 
 
 class InvoiceCheckerProcess:
-    def __init__(self, log_callback):
-        self.log = log_callback
+    def __init__(self, logger: Logger):
+        self.logger = logger
 
     def run(self, file_path: str, sheet_name: str) -> List[Tuple[str, bool, str]]:
         """
@@ -27,12 +26,12 @@ class InvoiceCheckerProcess:
         try:
             df = pd.read_excel(file_path, sheet_name=sheet_name, usecols="A", header=0, names=["invoice"])
         except Exception as e:
-            self.log(f"❌ Ошибка чтения Excel: {e}")
+            self.logger.log(f"❌ Ошибка чтения Excel: {e}")
             return []
 
         numbers = df["invoice"].dropna().astype(str).str.strip().tolist()
         if not numbers:
-            self.log("🟡 Файл пуст.")
+            self.logger.log("🟡 Файл пуст.")
             return []
 
         # Разделяем по регионам
@@ -53,36 +52,36 @@ class InvoiceCheckerProcess:
 
         # --- Обработка: Сибирь ---
         if grouped["siberia"]:
-            self.log("🌍 Проверка накладных: Сибирь")
+            self.logger.log("🌍 Проверка накладных: Сибирь")
             op = DMSOperation("siberia")
             for num in grouped["siberia"]:
                 try:
                     found = op.check_invoice(num)
                     all_results.append((num, found, "found" if found else "not_found"))
-                    self.log(f"   → {num}: {'✅' if found else '❌'}")
+                    self.logger.log(f"   → {num}: {'✅' if found else '❌'}")
                 except Exception as e:
-                    self.log(f"   ⚠️ {num}: {e}")
+                    self.logger.log(f"   ⚠️ {num}: {e}")
                     all_results.append((num, False, "error"))
             op.close()
 
         # --- Обработка: Урал ---
         if grouped["ural"]:
-            self.log("🌍 Проверка накладных: Урал")
+            self.logger.log("🌍 Проверка накладных: Урал")
             op = DMSOperation("ural")
             for num in grouped["ural"]:
                 try:
                     found = op.check_invoice(num)
                     all_results.append((num, found, "found" if found else "not_found"))
-                    self.log(f"   → {num}: {'✅' if found else '❌'}")
+                    self.logger.log(f"   → {num}: {'✅' if found else '❌'}")
                 except Exception as e:
-                    self.log(f"   ⚠️ {num}: {e}")
+                    self.logger.log(f"   ⚠️ {num}: {e}")
                     all_results.append((num, False, "error"))
             op.close()
 
         # --- Неизвестные ---
         for num in unknown:
             all_results.append((num, False, "unknown"))
-            self.log(f"⚠️ Неизвестный префикс: {num}")
+            self.logger.log(f"⚠️ Неизвестный префикс: {num}")
 
         # --- Обновляем Excel ---
         self._mark_excel(file_path, sheet_name, all_results)
@@ -122,6 +121,6 @@ class InvoiceCheckerProcess:
                 row += 1
 
             wb.save(file_path)
-            self.log(f"🎨 Результаты сохранены: {file_path}")
+            self.logger.log(f"🎨 Результаты сохранены: {file_path}")
         except Exception as e:
-            self.log(f"⚠️ Ошибка при обновлении Excel: {e}")
+            self.logger.log(f"⚠️ Ошибка при обновлении Excel: {e}")
