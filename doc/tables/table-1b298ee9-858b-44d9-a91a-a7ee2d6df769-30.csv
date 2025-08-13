@@ -1,0 +1,8 @@
+﻿ID,Тип,Задача,Приоритет,Описание
+T1.7,Task,Настроить PostgreSQL,Средний,Таблицы: trade_points", "region_esr_mapping", "invoice_reconciliation
+T1.8,Task,Реализовать синхронизацию маппинга,Средний,Обновление region_code → esr_code между Excel и БД
+T1.12,Task,Интегрировать LLM (OpenRouter),Средний,"Парсинг запросов, генерация JSON"
+US3.1–US3.3,User Story,Реализовать перепривязку ESR,Высокий,По XCRM GUID → удалить ESR → добавить новый
+US1.6,User Story,Реализовать предсказание атрибутов,Средний,Модель предсказывает: point_type", "area", "location_type
+US1.8,User Story,Сохранять новые ESR в БД,Средний,При ручном вводе — сохранять в region_esr_mapping
+US1.9–US1.10,User Story,Реализовать AI-чат,Высокий,Диалог: запрос → уточнение → JSON → запуск

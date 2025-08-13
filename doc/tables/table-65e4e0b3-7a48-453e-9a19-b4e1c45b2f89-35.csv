@@ -1,0 +1,8 @@
+﻿Компонент,Требование
+Операционная система,"Windows 10, Windows 11 (64-bit)"
+Интерпретатор Python,Python 3.10 – 3.12
+Библиотеки Python,"PyQt5, selenium, pandas, openpyxl, xlwings, psycopg2, pydantic"
+Браузер,Google Chrome (актуальная версия)
+Microsoft Excel,Excel 2016 или новее (для COM-доступа)
+PostgreSQL,PostgreSQL 14+ (локально или в сети)
+Дополнительно,ChromeDriver (совместимый с версией Chrome)

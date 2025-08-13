@@ -1,0 +1,10 @@
+﻿Правило,Описание
+BR-DATA-1,При создании ТТ поле name формируется как {owner} {address}
+BR-DATA-2,При отсутствии esr_code система ищет его в region_esr_mapping по region_code
+BR-DATA-3,Если region_code" не найден в БД, AI уточняет у пользователя"
+BR-DATA-4,При ручном указании esr_code пара region_code → esr_code сохраняется в БД
+BR-DATA-5,"При перепривязке удаляются только привязки, содержащие ""ESR"" в названии"
+BR-DATA-6,Если point_type", "assortment", "location_type", "area не указаны — система использует модель классификации для предсказания на основе истории и контекста
+BR-DATA-7,Дефолтные значения (Counter", "1-50", "Street) используются только если модель не может сделать предсказание
+BR-DATA-8,Процесс не запускается при отсутствии: owner", "address", "region_code
+BR-DATA-9,Все операции логируются в logs/app.log и в trade_points.error_message

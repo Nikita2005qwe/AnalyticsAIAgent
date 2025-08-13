@@ -1,0 +1,8 @@
+﻿Поле,Тип,Описание,Обязательность
+id,SERIAL,Уникальный идентификатор,Да
+invoice_number,VARCHAR(50),Номер накладной,Да
+isa_value,DECIMAL,Значение ISA,Да
+sfa_value,TEXT,Значение SFA (пусто / число),Да
+in_dms,BOOLEAN,Есть ли накладная в DMS,Да
+check_date,TIMESTAMP,Дата проверки,Да
+error_message,TEXT,Описание ошибки (если DMS недоступен),Нет

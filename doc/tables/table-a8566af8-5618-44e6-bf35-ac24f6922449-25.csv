@@ -1,0 +1,17 @@
+﻿Поле,Тип,Описание,Обязательность
+id,SERIAL,Уникальный идентификатор,Да
+owner,VARCHAR(255),Контрагент (владелец ТТ),Да
+address,TEXT,Адрес торговой точки,Да
+region_code,VARCHAR(10),"Код района маршрута (например, Н02)",Да
+inn,VARCHAR(12),ИНН контрагента,Нет
+point_type,VARCHAR(50),"Вид ТТ (например, ""Counter"")",Нет
+assortment,VARCHAR(100),"Тип ассортимента (например, ""Весь ассортимент"")",Нет
+location_type,VARCHAR(50),"Местоположение (например, ""Street"")",Нет
+area,VARCHAR(20),"Площадь (например, ""1-50"")",Нет
+chain_name,VARCHAR(100),"Название сети (например, ""NO CHAIN"")",Нет
+esr_code,VARCHAR(20),Код ESR для привязки,Да (до привязки)
+xcrm_guid,UUID,Уникальный идентификатор ТТ в CRM,После создания
+status,VARCHAR(20),"Статус: pending, created, failed, reattached",Да
+error_message,TEXT,Описание ошибки (если есть),Нет
+created_at,TIMESTAMP,Дата и время создания,Да
+updated_at,TIMESTAMP,Дата и время последнего изменения,Да
