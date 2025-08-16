@@ -94,7 +94,7 @@ class CheckInvoicesWidget(QWidget):
     def _on_run_process(self):
         """Запуск процесса проверки."""
         if not self.file_path:
-            self.logger.log("⚠️ Файл не выбран.")
+            self.logger.error("⚠️ Файл не выбран.")
             return
 
         sheet_name = self.sheet_combo.currentText()
@@ -111,4 +111,4 @@ class CheckInvoicesWidget(QWidget):
             self.logger.log(f"🎨 Результаты сохранены в файл: {self.file_path}")
 
         except Exception as e:
-            self.logger.log(f"❌ Ошибка при выполнении: {e}")
+            self.logger.error(f"❌ Ошибка при выполнении: {e}")

@@ -73,7 +73,7 @@ class Application:
 
         # --- 6. Создаём главное окно ---
         self.main_window = QMainWindow()
-        self.main_window.setWindowTitle("🧠 AI-Агент для Аналитика")
+        self.main_window.setWindowTitle("AI-Агент для Аналитика")
         self.main_window.resize(int(1100 * self.scale_factor), int(750 * self.scale_factor))
         self.main_window.showMaximized()  # можно убрать, если хочешь точный размер
 
@@ -120,7 +120,7 @@ class Application:
         """Создаёт заголовок приложения."""
         title = QLabel("AI-Агент для Аналитика")
         title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Arial", 16, QFont.Bold))
+        title.setFont(QFont("Arial", 3, QFont.Bold))
         title.setStyleSheet("color: #2c3e50; margin: 10px;")
         return title
 
@@ -194,12 +194,12 @@ class Application:
         }}
 
         QLabel {{
-            font-size: {px(14)};
+            font-size: {px(35)};
             color: #2c3e50;
         }}
 
         QLabel#title {{
-            font-size: {px(18)};
+            font-size: {px(35)};
             font-weight: bold;
             color: #1a3b5d;
         }}
@@ -210,9 +210,9 @@ class Application:
             border: none;
             padding: {px(12)} {px(20)};
             border-radius: {px(8)};
-            font-size: {px(14)};
+            font-size: {px(30)};
             font-weight: bold;
-            min-height: {px(40)};
+            min-height: {px(10)};
         }}
 
         QPushButton:hover {{
