@@ -1,283 +1,406 @@
-# src/core/application.py
-
 """
 Модуль: application.py
+Класс: Application
 
-Основное GUI-приложение — AI-агент для аналитика.
+Описание: Главный класс приложения, отвечающий за инициализацию, настройку и запуск всех компонентов.
 
-Особенности:
-- Полноэкранный режим.
-- Централизованное логирование через Logger.
-- Вкладка "Настройки" с опцией записи логов в файл.
-- Масштабируемая фабрика вкладок.
-- Чёткое разделение на мелкие методы.
+Назначение:
+- Загрузка конфигурации (настройки, .env)
+- Инициализация логгера
+- Создание главного окна (с вкладками)
+- Регистрация всех бизнес-процессов (view-виджетов)
+- Запуск GUI
+
+Архитектурная роль:
+- Точка входа в приложение
+- Координатор между слоями: core, ui, business_processes
+- Централизованное управление жизненным циклом
+
+Версия: v0.1
+Автор: Боряков
+Дата: 21.08.2025
+Статус: Разработан
 """
 
+# --- Стандартная библиотека ---
 import sys
-from typing import List, Type
+
+from PyQt5.QtGui import QKeySequence
+# --- PyQt5 ---
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QTextEdit, QTabWidget, QFrame, QDesktopWidget
+    QApplication,  # Основной класс для запуска GUI-приложения
+    QMessageBox, QShortcut  # Диалоговое окно для отображения ошибок
 )
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-# Локальные модули
-from src.core.logger import Logger
-from src.core.settings_widget import SettingsWidget
 
-
-class TabInterface:
-    @staticmethod
-    def create_widget(logger) -> QWidget:
-        raise NotImplementedError
-
-
-class PointManager:
-    def create_trade_points(self, data): return {"success": len(data), "errors": []}
-    def reassign_esr_bulk(self, ids, esr): return {"success": len(ids), "new_esr": esr}
+# --- Локальные импорты из проекта ---
+from src.core.config import Config      # Хранилище настроек и секретов
+from src.core.logger import Logger      # Глобальный логгер с поддержкой GUI и файла
+from src.core.shortcuts import ShortcutManager
+from src.ui.main_window import MainWindow  # Главное окно с вкладками и боковым меню
 
 
 class Application:
+    """
+    Главный класс приложения — точка входа и координатор всех компонентов.
+
+    Атрибуты:
+    - config (Config): объект конфигурации (настройки, API-ключи)
+    - logger (Logger): глобальный логгер для записи событий
+    - main_window (MainWindow): главное окно приложения с вкладками
+    - widgets (dict): реестр всех зарегистрированных виджетов: {название: экземпляр}
+    - qt_app (QApplication): экземпляр PyQt-приложения (создаётся в run)
+
+    Архитектурная роль:
+    - Управляет жизненным циклом приложения
+    - Последовательно инициализирует core-компоненты
+    - Регистрирует все UI-виджеты
+    - Обеспечивает централизованное логирование и обработку ошибок
+    """
+
     def __init__(self):
-        """Инициализация приложения: создаёт логгер, окно, компоненты."""
-        self.qt_app = QApplication(sys.argv)
-        # --- 1. Включаем поддержку высокого DPI ---
-        if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-            self.qt_app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-        if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-            self.qt_app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+        """
+        Инициализирует приложение.
 
-        # --- 2. Получаем размер экрана ---
-        screen = QDesktopWidget().screenGeometry()
-        self.screen_width = screen.width()
-        self.screen_height = screen.height()
+        Шаги:
+        1. Установить self.config = None — будет создан в setup_config()
+        2. Установить self.logger = None — будет создан в setup_logger()
+        3. Установить self.main_window = None — будет создан в setup_main_window()
+        4. Установить self.widgets = {} — реестр всех зарегистрированных виджетов
+        5. Установить self.qt_app = None — будет создан в run()
 
-        # --- 3. Определяем масштабный коэффициент ---
-        # База — Full HD (1920x1080), на нём UI выглядит нормально
-        base_width = 1920
-        base_height = 1080
-        self.scale_factor = max(self.screen_width / base_width, self.screen_height / base_height)
+        Примечание:
+        - Application не принимает параметров — он сам создаёт все зависимости
+        - Порядок инициализации строго определён: Config → Logger → MainWindow → виджеты
+        - Использует принцип DI (Dependency Injection) — передаёт зависимости в виджеты
+        """
+        self.config = None
+        self.logger = None
+        self.main_window = None
+        self.widgets = {}
+        self.qt_app = None
+        self.shortcut_manager = None  # ← новый атрибут
 
-        # Пример: на 2880x1920 → scale_factor ≈ 1.5–2.0
-        print(f"Экран: {self.screen_width}x{self.screen_height}, масштаб: {self.scale_factor:.2f}x")
+    def setup_config(self):
+        """
+        Загружает и инициализирует конфигурацию приложения.
 
-        # --- 4. Устанавливаем глобальный шрифт с масштабированием ---
-        base_font_size = 20
-        scaled_font_size = int(base_font_size * self.scale_factor)
-        font = QFont("Segoe UI", scaled_font_size)
-        font.setBold(False)
-        self.qt_app.setFont(font)
+        Шаги:
+        1. Создать экземпляр Config с временным logger=None
+        2. Создать необходимые директории: config/, logs/, temp/
+        3. Загрузить настройки из config/settings.json
+           - Если файл не существует — создать дефолтный
+        4. Загрузить переменные окружения из .env
+           - Если .env нет — предупредить, но продолжить
+        5. Проверить наличие обязательных секретов (например, DMS_LOGIN, CRM_PASSWORD)
+        6. Сохранить объект в self.config
 
-        # --- 5. Устанавливаем стили с масштабированием ---
-        self.qt_app.setStyleSheet(self._get_global_style())
+        Примечание:
+        - Config — центральное хранилище: GUI-настройки, пути, секреты
+        - Использует .env для хранения чувствительных данных (не в JSON)
+        - Дефолтный config создаётся при первом запуске
+        """
+        try:
+            # Шаг 1: Создать экземпляр Config
+            self.config = Config(logger=None)
 
-        # --- 6. Создаём главное окно ---
-        self.main_window = QMainWindow()
-        self.main_window.setWindowTitle("AI-Агент для Аналитика")
-        self.main_window.resize(int(1100 * self.scale_factor), int(750 * self.scale_factor))
-        self.main_window.showMaximized()  # можно убрать, если хочешь точный размер
+            # Шаг 2: Создать директории
+            self.config.ensure_directories()
 
-        self.logger = Logger()  # Центральный логгер
-        self.point_manager = PointManager()
-        self.tabs_registry: List[Type[TabInterface]] = []
-        self._register_tabs()
+            # Шаг 3: Загрузить настройки из JSON
+            self.config.load()
 
-        self.log_area = None  # будет создано позже
-        self._setup_ui()
+            # Логирование будет позже, после инициализации Logger
+        except Exception as e:
+            # На этом этапе logger ещё не готов — используем print
+            print(f"❌ Ошибка при инициализации Config: {e}", file=sys.stderr)
+            raise
 
-    def _register_tabs(self):
-        """Регистрирует все вкладки."""
-        from src.buisness_processes.check_invoices.view import CheckInvoicesWidget
+    def setup_logger(self):
+        """
+        Инициализирует глобальный логгер.
 
-        class CheckInvoicesTab(TabInterface):
-            @staticmethod
-            def create_widget(logger):
-                return CheckInvoicesWidget(logger=logger)
+        Шаги:
+        1. Получить путь к файлу логов из self.config.get("log_file", "logs/app.log")
+        2. Определить уровень логирования:
+           - Если config.get("full_log") == True → DEBUG
+           - Иначе → INFO
+        3. Создать экземпляр Logger с помощью Logger.get_instance()
+        4. Сохранить в self.logger
+        5. Залогировать старт: "Application started. Version 0.4"
 
-        class SettingsTab(TabInterface):
-            @staticmethod
-            def create_widget(logger):
-                return SettingsWidget(logger=logger)
+        Примечание:
+        - Logger — синглтон, используется всеми компонентами приложения
+        - Поддерживает запись в файл и отправку событий в GUI (через сигнал)
+        - Уровень логирования зависит от настроек, а не жёстко закодирован
+        """
+        # Шаг 1: Получить путь к файлу логов
+        log_file = self.config.get("log_file", "logs/app.log")
 
-        self.tabs_registry.append(CheckInvoicesTab)
-        self.tabs_registry.append(SettingsTab)
+        # Шаг 2: Определить уровень логирования
+        level = "DEBUG" if self.config.get("full_log", False) else "INFO"
 
-    def _setup_ui(self):
-        """Создаёт весь интерфейс."""
-        central = QWidget()
-        self.main_window.setCentralWidget(central)
-        layout = QVBoxLayout()
+        # Шаг 3: Создать экземпляр Logger
+        self.logger = Logger.get_instance(log_file=log_file, level=level)
 
-        layout.addWidget(self._create_title())
-        layout.addWidget(self._create_separator())
-        layout.addLayout(self._create_tabs_layout())
-        layout.addWidget(self._create_log_label())
-        layout.addWidget(self._create_log_area())
+        # Шаг 5: Залогировать старт
+        self.logger.info("Application started. Version 0.4")
 
-        central.setLayout(layout)
+    def setup_main_window(self):
+        """
+        Создаёт и настраивает главное окно приложения.
 
-    def _create_title(self) -> QLabel:
-        """Создаёт заголовок приложения."""
-        title = QLabel("AI-Агент для Аналитика")
-        title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Arial", 3, QFont.Bold))
-        title.setStyleSheet("color: #2c3e50; margin: 10px;")
-        return title
+        Шаги:
+        1. Создать экземпляр MainWindow, передав logger
+        2. Вызвать main_window.setup_ui() с параметрами:
+           - icon_file_name: путь к иконке (из config или дефолтный)
+           - style_file: путь к QSS-стилям
+        3. Сохранить ссылку в self.main_window
 
-    def _create_separator(self) -> QFrame:
-        """Создаёт горизонтальную линию."""
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
-        return line
+        Примечание:
+        - MainWindow должен поддерживать добавление вкладок через add_tab(title, widget)
+        - Использует боковое меню для навигации между процессами
+        - Поддерживает темы и иконки
+        """
+        # Шаг 1: Создать экземпляр MainWindow
+        self.main_window = MainWindow(logger=self.logger)
+        window_size = self.config.get("window_size", [1920, 1080])
+        full_screen = self.config.get("full_screen", True)
+        maximized = self.config.get("maximized", True)
+        # Шаг 2: Настроить UI
+        self.main_window.setup_ui(
+            icon_file_name=self.config.get("icon_path", "assets/icon.png"),
+            style_file=self.config.get("style_file", "styles/app.qss"),
+            initial_size=window_size,
+            full_screen=full_screen,
+            maximized=maximized
+        )
 
-    def _create_tabs_layout(self) -> QHBoxLayout:
-        """Создаёт вкладки."""
-        tabs = QTabWidget()
+    def register_business_processes(self):
+        """
+        Регистрирует все вкладки приложения, описанные в конфигурации.
 
-        # Статические вкладки (пример)
-        tabs.addTab(self._create_placeholder_tab("Управление ТО"), "Управление ТО")
-        tabs.addTab(self._create_placeholder_tab("Загрузка данных"), "Загрузка данных")
+        Это ключевой метод, который связывает:
+        - декларативную конфигурацию (config.json)
+        - динамическую загрузку модулей (import)
+        - создание UI-виджетов
+        - добавление вкладок в главное окно
 
-        # Динамические вкладки
-        for tab_class in self.tabs_registry:
-            try:
-                widget = tab_class.create_widget(logger=self.logger)
-                tab_name = self._get_tab_name(tab_class)
-                tabs.addTab(widget, tab_name)
-                self.logger.log(f"📌 Вкладка добавлена: {tab_name}")
-            except Exception as e:
-                self.logger.error(f"❌ Ошибка при создании вкладки: {e}")
+        Назначение:
+        - Централизованно зарегистрировать все view-компоненты (вкладки)
+        - Поддерживать гибкость: новые вкладки добавляются только в config.json
+        - Не требовать правки кода при добавлении нового процесса
+        - Обеспечить единый способ инициализации всех виджетов
 
-        layout = QHBoxLayout()
-        layout.addWidget(tabs)
-        return layout
+        Архитектурная роль:
+        - Мост между конфигурацией и UI
+        - Реализует паттерн: "Координатор + декларация"
+        - Поддерживает расширяемость без изменения кода
 
-    def _create_placeholder_tab(self, title: str) -> QWidget:
-        """Создаёт заглушку для временных вкладок."""
-        tab = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel(f"🔹 {title} (заглушка)"))
-        tab.setLayout(layout)
-        return tab
-
-    def _get_tab_name(self, tab_class: Type[TabInterface]) -> str:
-        if "CheckInvoices" in tab_class.__name__: return "Проверка накладных"
-        if "Settings" in tab_class.__name__: return "Настройки"
-        return tab_class.__name__.replace("Tab", "").replace("Widget", "")
-
-    def _create_log_label(self) -> QLabel:
-        """Создаёт метку для лога."""
-        return QLabel("Лог операций:")
-
-    def _create_log_area(self) -> QTextEdit:
-        """Создаёт текстовое поле для лога."""
-        self.log_area = QTextEdit()
-        self.log_area.setReadOnly(True)
-        self.log_area.setStyleSheet("background-color: #f8f9fa; font-family: 'Courier'; font-size: 12px;")
-        self.log_area.setMaximumHeight(200)
-
-        # Подключаем сигнал логгера
-        self.logger.log_signal.connect(self.log_area.append)
-
-        return self.log_area
-
-    def _get_global_style(self) -> str:
-        # Базовые размеры в "условных единицах", масштабируются
-        def px(size: int) -> str:
-            return f"{int(size * self.scale_factor)}px"
-
-        return f"""
-        * {{
-            font-family: 'Segoe UI', 'Arial', sans-serif;
-            font-size: {px(14)};
-        }}
-
-        QLabel {{
-            font-size: {px(35)};
-            color: #2c3e50;
-        }}
-
-        QLabel#title {{
-            font-size: {px(35)};
-            font-weight: bold;
-            color: #1a3b5d;
-        }}
-
-        QPushButton {{
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: {px(12)} {px(20)};
-            border-radius: {px(8)};
-            font-size: {px(30)};
-            font-weight: bold;
-            min-height: {px(10)};
-        }}
-
-        QPushButton:hover {{
-            background-color: #2980b9;
-        }}
-
-        QPushButton:pressed {{
-            background-color: #1f618d;
-        }}
-
-        QTabBar::tab {{
-            background-color: #bdc3c7;
-            color: #2c3e50;
-            padding: {px(12)} {px(20)};
-            margin: {px(2)};
-            border-top-left-radius: {px(6)};
-            border-top-right-radius: {px(6)};
-            font-size: {px(14)};
-            min-width: {px(120)};
-            min-height: {px(40)};
-        }}
-
-        QTabBar::tab:selected {{
-            background-color: #3498db;
-            color: white;
-        }}
-
-        QCheckBox {{
-            spacing: {px(8)};
-            font-size: {px(14)};
-        }}
-
-        QCheckBox::indicator {{
-            width: {px(18)};
-            height: {px(18)};
-        }}
-
-        QTextEdit {{
-            background-color: #ffffff;
-            border: 1px solid #dcdde1;
-            border-radius: {px(6)};
-            font-family: 'Courier New', monospace;
-            font-size: {px(12)};
-            padding: {px(8)};
-            min-height: {px(100)};
-        }}
-
-        QComboBox {{
-            padding: {px(8)} {px(12)};
-            border: 1px solid #bdc3c7;
-            border-radius: {px(6)};
-            min-height: {px(36)};
-            font-size: {px(14)};
-        }}
-
-        QComboBox::drop-down {{
-            width: {px(30)};
-            border-left: 1px solid #bdc3c7;
-        }}
+        Зависимости:
+        - src.core.config.Config — для получения списка вкладок
+        - src.ui.main_window.MainWindow — для добавления вкладок
+        - PyQt5.QtWidgets.QWidget — базовый класс для всех view
+        - Динамические импорты: __import__, getattr
         """
 
+        # === 2. Получаем конфигурацию вкладок из Config ===
+        # Метод get_tab_config() возвращает словарь:
+        # {
+        #   "check_invoices": {
+        #     "title": "Проверка накладных",
+        #     "type": "business_process",
+        #     "module": "check_invoices",
+        #     "class": "CheckInvoicesView"
+        #   },
+        #   ...
+        # }
+        tab_config = self.config.get_tab_config()
+
+        # === 3. Получаем порядок вкладок ===
+        # tab_order — список ключей, определяющий порядок отображения
+        # Пример: ["check_invoices", "settings", "ai_chat"]
+        # Если не задан — возвращаем все ключи из tabs
+        order = self.config.get_tab_order()
+
+        # === 4. Основной цикл: регистрация каждой вкладки ===
+        for key in order:
+            # Шаг 4.1: Проверяем, описана ли вкладка в config.tabs
+            if key not in tab_config:
+                self.logger.warning(f"Вкладка '{key}' указана в tab_order, но не описана в tabs. Пропущено.")
+                continue
+
+            # Шаг 4.2: Получаем мета-данные вкладки
+            tab_info = tab_config[key]
+            title = tab_info["title"]  # Отображаемое название
+            tab_type = tab_info["type"]  # Тип: business_process / internal_app
+            module_name = tab_info["module"]  # Имя модуля (папки)
+            class_name = tab_info["class"]  # Имя класса в модуле
+
+            try:
+                # === 5. Определяем путь к модулю в зависимости от типа ===
+                if tab_type == "business_process":
+                    # Бизнес-процессы: src.business_processes.<module>.view
+                    module_path = f"src.buisness_processes.{module_name}.view"
+                elif tab_type == "internal_app":
+                    # Встроенные приложения: src.ui.apps.<module>.view
+                    module_path = f"src.ui.apps.{module_name}.view"
+                else:
+                    raise ValueError(f"Неизвестный тип вкладки: '{tab_type}'. "
+                                     f"Ожидалось: 'business_process' или 'internal_app'")
+
+                # === 6. Динамически импортируем модуль ===
+                # __import__ загружает модуль по строке
+                # fromlist=[class_name] — гарантирует, что вернётся именно модуль view
+                module = __import__(module_path, fromlist=[class_name])
+
+                # === 7. Получаем класс из модуля по имени ===
+                # Например: getattr(module, "CheckInvoicesView")
+                view_class = getattr(module, class_name)
+
+                # === 8. Создаём экземпляр виджета ===
+                # Все view-классы должны иметь интерфейс:
+                # __init__(config: Config, logger: Logger)
+                widget = view_class(self.logger, self.config)
+
+                # Получаем кнопку навигации
+                nav_button = widget.get_navigation_button()
+                nav_button.setCheckable(True)
+
+                # Подключаем сигнал: при клике — показать виджет
+                # Замыкание, чтобы захватить widget
+                nav_button.clicked.connect(
+                    lambda checked, w=widget: self.main_window.switch_to(w)
+                )
+
+                # Добавляем кнопку в боковое меню
+                self.main_window.sidebar_layout.addWidget(nav_button)
+
+                # === 10. Сохраняем ссылку в реестре Application ===
+                # Нужно для дальнейшего доступа (например, навигация, активация)
+                self.widgets[title] = widget
+
+                # === 11. Логируем успешную регистрацию ===
+                self.logger.info(f"Виджет зарегистрирован: {title}")
+
+            # === 12. Обработка ошибок ===
+            except ModuleNotFoundError as e:
+                # Модуль не найден — возможно, папка отсутствует
+                self.logger.error(f"Модуль не найден для вкладки '{title}' ({key}): {e}")
+
+            except AttributeError as e:
+                # Класс не найден в модуле — опечатка в class_name или нет класса
+                self.logger.error(f"Класс '{class_name}' не найден в модуле '{module_path}': {e}")
+
+            except TypeError as e:
+                # Ошибка при создании экземпляра — неправильные аргументы в __init__
+                self.logger.error(f"Ошибка инициализации виджета '{title}': {e}. "
+                                  f"Проверьте сигнатуру __init__(config, logger)")
+
+            except Exception as e:
+                # Любая другая ошибка (например, ошибка в __init__ виджета)
+                self.logger.error(f"Неизвестная ошибка при создании виджета '{title}': {e}")
+
+        # === 13. Финальное логирование ===
+        self.logger.info(f"Регистрация вкладок завершена. Зарегистрировано: {len(self.widgets)} виджетов")
+
+    def on_config_changed(self, key: str, value):
+        if key == "full_log":
+            self.main_window.show_logs_panel(value)
+        elif key == 'window_mode':
+            if value["maximized"]:
+                self.main_window.showMaximized()  # ← Приоритет: развёрнутое окно
+            else:
+                self.main_window.showNormal()
+                self.main_window.resize(*value["window_size"])  # ← Только если не maximized
+
     def run(self):
-        """Запускает приложение."""
-        self.main_window.show()
+        """
+        Запускает приложение: инициализирует все компоненты и показывает главное окно.
+
+        Шаги:
+        1. Вызвать setup_config()
+        2. Вызвать setup_logger()
+        3. Передать настоящий logger в config.set_logger()
+        4. Вызвать setup_main_window()
+        5. Вызвать register_business_processes()
+        6. Вызвать build_navigation()
+        7. Создать QApplication
+        8. Показать главное окно
+        9. Запустить цикл событий: app.exec_()
+
+        Обработка ошибок:
+        - Если на любом этапе произошла ошибка:
+          * Залогировать её через self.logger (если доступен)
+          * Показать QMessageBox с текстом ошибки
+          * Завершить приложение с кодом 1
+        """
         try:
+            # Шаг 1
+            self.setup_config()
+
+            # Шаг 2
+            self.setup_logger()
+
+            # Шаг 3
+            self.config.set_logger(self.logger)
+            self.config.config_changed.connect(self.on_config_changed)
+            # Шаг 4
+            self.qt_app = QApplication(sys.argv)
+            self.setup_main_window()
+            self.main_window.application = self  # ← для switch_to
+
+            # Шаг 5
+            # === 5. Зарегистрировать виджеты ===
+            self.register_business_processes()
+
+            # === Инициализация ShortcutManager ===
+            self.shortcut_manager = ShortcutManager(
+                self.main_window,
+                self.logger,
+                self.config,
+                self.widgets.get("Настройки"),
+                self.widgets.get("Проверка накладных")
+            )
+
+            # === Подключаем переключение контекста ===
+            # При смене вкладки — уведомляем ShortcutManager
+            def on_tab_switch(widget):
+                if hasattr(self, 'shortcut_manager'):
+                    self.shortcut_manager.on_widget_activated(widget)
+
+            # Оборачиваем switch_to, чтобы добавить колбэк
+            original_switch = self.main_window.switch_to
+
+            def wrapped_switch(widget):
+                original_switch(widget)
+                on_tab_switch(widget)
+
+            self.main_window.switch_to = wrapped_switch
+
+            # После setup_main_window() и до main_window.show()
+            self.main_window.show_logs_panel(self.config.get("full_log", False))
+            # Шаг 7-9
+            self.main_window.show()
+            self.logger.info("GUI запущен")
+
             sys.exit(self.qt_app.exec_())
-        finally:
-            self.logger.close()
+
+        except Exception as e:
+            # Если logger уже инициализирован — логируем
+            if self.logger:
+                self.logger.error(f"Фатальная ошибка при запуске: {e}")
+            else:
+                print(f"❌ Фатальная ошибка: {e}", file=sys.stderr)
+
+            # Пытаемся показать QMessageBox
+            try:
+                app = QApplication(sys.argv)
+                msg_box = QMessageBox()
+                msg_box.setWindowTitle("Ошибка запуска")
+                msg_box.setText(f"Приложение не может быть запущено:\n{e}")
+                msg_box.setIcon(QMessageBox.Critical)
+                msg_box.exec_()
+            except:
+                pass  # Если и GUI не запустится — ничего не поделать
+
+            sys.exit(1)

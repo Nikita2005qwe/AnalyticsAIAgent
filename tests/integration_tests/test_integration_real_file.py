@@ -1,7 +1,7 @@
 import unittest
 import os
 import pandas as pd
-from src.services.file_service import FileService
+from src.services.file_handler import FileService
 from src.services.invoice_factory import InvoiceFactory
 
 

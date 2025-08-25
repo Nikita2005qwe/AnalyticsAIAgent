@@ -1,0 +1,52 @@
+{
+  "log_file": "logs/app.log",
+  "full_log": false,
+  "icon_path": "assets/icon.png",
+  "style_file": "styles/app.qss",
+  "tab_order": [
+    "check_invoices",
+    "create_tt",
+    "rebind_tt",
+    "tasks",
+    "ai_chat",
+    "settings"
+  ],
+  "tabs": {
+    "check_invoices": {
+      "title": "Проверка накладных",
+      "type": "business_process",
+      "module": "check_invoices",
+      "class": "CheckInvoicesView"
+    },
+    "create_tt": {
+      "title": "Создание ТТ",
+      "type": "business_process",
+      "module": "create_tt",
+      "class": "CreateTtView"
+    },
+    "rebind_tt": {
+      "title": "Перепривязка ТТ",
+      "type": "business_process",
+      "module": "rebind_tt",
+      "class": "RebindTtView"
+    },
+    "tasks": {
+      "title": "Задачи",
+      "type": "internal_app",
+      "module": "tasks",
+      "class": "TaskManagerView"
+    },
+    "ai_chat": {
+      "title": "Чат с AI-агентом",
+      "type": "internal_app",
+      "module": "ai_chat",
+      "class": "AIAgentChatView"
+    },
+    "settings": {
+      "title": "Настройки",
+      "type": "internal_app",
+      "module": "settings",
+      "class": "SettingsAppView"
+    }
+  }
+}

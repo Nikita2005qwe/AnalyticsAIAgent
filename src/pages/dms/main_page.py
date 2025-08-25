@@ -40,6 +40,10 @@ class MainPage:
 
     def go_to_login_page(self):
         """Переходит на страницу входа через кнопку 'Войти'."""
+        # Ждём, пока лоадер исчезнет
+        WebDriverWait(self.driver, 15).until(
+            EC.invisibility_of_element_located((By.CLASS_NAME, "main-page--loading"))
+        )
         button = WebDriverWait(self.driver, 20).until(
             EC.element_to_be_clickable(self.login_button_locator)
         )

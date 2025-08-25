@@ -1,9 +1,8 @@
 import unittest
 import tempfile
-import os
 from pathlib import Path
 import pandas as pd
-from src.services.file_service import FileService
+from src.services.file_handler import FileService
 
 
 class TestFileService(unittest.TestCase):
@@ -97,7 +96,7 @@ class TestFileService(unittest.TestCase):
 
     def test_save_trade_points_to_excel_success(self):
         """Тест успешного сохранения торговых точек."""
-        from src.models.trade_point import TradePoint, PointStatus
+        from src.models.trade_point.trade_point import TradePoint
 
         # Создаем тестовые торговые точки
         trade_points = [
