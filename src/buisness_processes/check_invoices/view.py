@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QPushButton,
     QFileDialog,
-    QFrame,
+    QFrame, QMessageBox,
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -166,7 +166,27 @@ class CheckInvoicesView(QWidget):
             }
         """)
         layout.addWidget(self.run_button)
-
+        # === Кнопка "Обновить отчёт" ===
+        self.update_button = QPushButton("🔄 Обновить отчёт")
+        self.update_button.setCursor(Qt.PointingHandCursor)
+        self.update_button.setStyleSheet("""
+            QPushButton {
+                background-color: #ff9800;
+                color: white;
+                padding: 10px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #e68900;
+            }
+            QPushButton:disabled {
+                background-color: #ccc;
+                color: #666;
+            }
+        """)
+        self.update_button.setEnabled(False)
+        layout.addWidget(self.update_button)
         # === Растяжка вниз ===
         layout.addStretch()
 
@@ -181,6 +201,7 @@ class CheckInvoicesView(QWidget):
 
         # Кнопка "Запустить проверку"
         self.run_button.clicked.connect(self._on_run_process)
+        self.update_button.clicked.connect(self._on_update_report)
 
     def _on_browse_file(self):
         """Обработчик выбора файла."""
@@ -201,8 +222,41 @@ class CheckInvoicesView(QWidget):
         filename = os.path.basename(file_path)
         self.file_label.setText(f"✅ Выбран файл: <b>{filename}</b>")
         self.file_label.setStyleSheet("color: #34a853; font-size: 13px;")
-        self.run_button.setEnabled(True)
+
+        # Включаем кнопку "Обновить", если это отчёт
+        if "report" in filename.lower():
+            self.update_button.setEnabled(True)
+        else:
+            self.update_button.setEnabled(False)
+
         self.logger.info(f"📎 Выбран файл: {filename}")
+
+    def _on_update_report(self):
+        """Обработчик: обновление существующего отчёта."""
+        if not self.file_path:
+            self.logger.error("❌ Файл не выбран. Невозможно обновить отчёт.")
+            return
+
+        # Проверяем, это отчёт?
+        if "report" not in self.file_path.lower():
+            reply = QMessageBox.question(
+                self,
+                "Подтверждение",
+                "Вы уверены, что хотите обновить этот файл как отчёт?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+
+        try:
+            self.logger.info(f"🔄 Начинаем обновление отчёта: {self.file_path}")
+
+            # Запускаем процесс в режиме update
+            self.process.run(self.file_path, mode="update")
+
+            self.logger.info("✅ Отчёт успешно обновлён")
+        except Exception as e:
+            self.logger.error(f"❌ Ошибка при обновлении отчёта: {e}")
 
     def _on_run_process(self):
         """Запуск процесса проверки."""

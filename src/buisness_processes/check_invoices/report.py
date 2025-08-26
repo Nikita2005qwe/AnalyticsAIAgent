@@ -14,7 +14,7 @@
 - CheckedInvoice, CheckStatus, Invoice — из модели
 """
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.utils import get_column_letter
 from typing import List, Dict, Any
@@ -63,6 +63,34 @@ class ReporterOfCheckInvoiceProcess:
             print(f"✅ Отчёт сохранён: {os.path.abspath(self.report_file)}")
         except Exception as e:
             print(f"❌ Ошибка при сохранении отчёта: {e}")
+            raise
+
+    def update_report(self, report_path: str, data: List[CheckedInvoice]):
+        """
+        Обновляет существующий отчёт:
+        - Удаляет старые листы
+        - Создаёт новые
+        - Сохраняет в тот же файл
+        """
+        try:
+            wb = load_workbook(report_path)
+
+            # Удаляем старые листы
+            for sheet_name in ["Не найденные по городам", "Полный отчёт"]:
+                if sheet_name in wb.sheetnames:
+                    del wb[sheet_name]
+
+            # Пересоздаём отчёт
+            self.data = data
+            self._create_not_found_by_city_sheet(wb)
+            self._create_full_report_sheet(wb)
+
+            wb.save(report_path)
+            self.logger.info(f"✅ Отчёт обновлён: {report_path}")
+            self.open_report()
+
+        except Exception as e:
+            self.logger.error(f"❌ Ошибка при обновлении отчёта: {e}")
             raise
 
     def _create_not_found_by_city_sheet(self, wb):

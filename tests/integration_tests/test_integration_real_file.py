@@ -1,8 +1,8 @@
 import unittest
 import os
 import pandas as pd
-from src.services.file_handler import FileService
-from src.services.invoice_factory import InvoiceFactory
+from src.services.file_handler import FileHandler
+from src.models.invoice.invoice_factory import InvoiceFactory
 
 
 class TestIntegrationRealFile(unittest.TestCase):
@@ -10,7 +10,7 @@ class TestIntegrationRealFile(unittest.TestCase):
 
     def setUp(self):
         """Настройка для тестов с реальным файлом."""
-        self.file_service = FileService()
+        self.file_service = FileHandler("data/Книга1.xlsx")
         self.real_file_path = "data/Книга1.xlsx"
 
     def test_file_exists(self):
@@ -30,8 +30,8 @@ class TestIntegrationRealFile(unittest.TestCase):
         sheet_name = xl.sheet_names[0]  # 'выгрузка_PU'
 
         # Загружаем номера накладных
-        invoice_numbers = self.file_service.load_invoice_numbers_from_excel(
-            self.real_file_path, sheet_name
+        invoice_numbers = self.file_service.read_invoices(
+            sheet_name
         )
 
         # Проверяем, что найдено 14 накладных
@@ -53,7 +53,7 @@ class TestIntegrationRealFile(unittest.TestCase):
 
         # Загружаем номера накладных
         invoice_numbers = self.file_service.load_invoice_numbers_from_excel(
-            self.real_file_path, sheet_name
+            sheet_name
         )
 
         # Создаем накладные через фабрику

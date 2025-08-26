@@ -88,6 +88,12 @@ class ShortcutManager(QObject):
                 callback=self._on_run_process,
                 description="Запустить проверку накладных"
             )
+            self._add_context_shortcut(
+                widget=self.check_invoices_widget,
+                key_sequence="Ctrl+R",
+                callback=self._on_update_report,
+                description="Обновить существующий отчёт"
+            )
 
         # --- 2. Для вкладки "Настройки" ---
         if self.settings_widget:
@@ -153,6 +159,11 @@ class ShortcutManager(QObject):
         """Ctrl+E: запускает проверку (только если активна вкладка проверки)."""
         if self._is_active(self.check_invoices_widget):
             self.check_invoices_widget._on_run_process()
+
+    def _on_update_report(self):
+        """Ctrl+R: запускает обновление загруженного отчёта (только если активна вкладка проверки)."""
+        if self.check_invoices_widget:
+            self.check_invoices_widget._on_update_report()
 
     def _on_save_settings(self):
         """Ctrl+S: сохраняет настройки (только если активна вкладка настроек)."""

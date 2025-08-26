@@ -131,6 +131,6 @@ class InvoiceFactory:
             return main_city
 
         # Если есть альтернативный — проверяем, есть ли он в адресе
-        if alt_city in address:
+        if (alt_city in address) or ("Томск" in address):
             return alt_city
         return main_city
